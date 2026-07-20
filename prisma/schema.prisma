@@ -1,0 +1,143 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PropertyType {
+  DEPARTAMENTO
+  CASA
+  LOCAL
+  TERRENO
+  OTRO
+}
+
+enum PropertyStatus {
+  COMPRADA
+  EN_OBRA
+  EN_VENTA
+  VENDIDA
+}
+
+enum TxCategory {
+  COMPRA
+  ESCRITURA
+  COMISION
+  REFACCION
+  IMPUESTOS
+  SERVICIOS
+  EXPENSAS
+  VENTA
+  OTRO
+}
+
+enum TxDirection {
+  INGRESO
+  EGRESO
+}
+
+enum Currency {
+  USD
+  ARS
+}
+
+model Property {
+  id               String         @id @default(cuid())
+  name             String
+  address          String
+  city             String
+  description      String?
+  type             PropertyType   @default(DEPARTAMENTO)
+  status           PropertyStatus @default(COMPRADA)
+  purchaseDate     DateTime
+  purchasePriceUsd Decimal        @db.Decimal(14, 2)
+  listingPriceUsd  Decimal?       @db.Decimal(14, 2)
+  saleDate         DateTime?
+  salePriceUsd     Decimal?       @db.Decimal(14, 2)
+  surfaceM2        Decimal?       @db.Decimal(10, 2)
+  rooms            Int?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  transactions Transaction[]
+  valuations   Valuation[]
+}
+
+model Transaction {
+  id           String      @id @default(cuid())
+  propertyId   String
+  property     Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  date         DateTime
+  category     TxCategory
+  direction    TxDirection
+  currency     Currency
+  amount       Decimal     @db.Decimal(16, 2)
+  exchangeRate Decimal     @default(1) @db.Decimal(12, 4)
+  amountUsd    Decimal     @db.Decimal(14, 2)
+  notes        String?
+  createdAt    DateTime    @default(now())
+
+  @@index([propertyId, date])
+}
+
+model Member {
+  id               String  @id @default(cuid())
+  name             String  @unique
+  category         String
+  contributionsUsd Decimal @db.Decimal(14, 2)
+  sharePct         Decimal @db.Decimal(6, 2)
+
+  movements MemberMovement[]
+}
+
+model MemberMovement {
+  id       String   @id @default(cuid())
+  memberId String
+  member   Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date     DateTime
+  concept  String
+  inUsd    Decimal  @default(0) @db.Decimal(14, 2)
+  outUsd   Decimal  @default(0) @db.Decimal(14, 2)
+  notes    String?
+
+  @@index([memberId, date])
+}
+
+model CajaMovement {
+  id      String   @id @default(cuid())
+  date    DateTime
+  concept String
+  inUsd   Decimal  @default(0) @db.Decimal(14, 2)
+  outUsd  Decimal  @default(0) @db.Decimal(14, 2)
+
+  @@index([date])
+}
+
+model Liquidation {
+  id       String   @id @default(cuid())
+  date     DateTime
+  totalUsd Decimal  @db.Decimal(14, 2)
+  shares   Json
+}
+
+model SyncLog {
+  id       String   @id @default(cuid())
+  syncedAt DateTime @default(now())
+  ok       Boolean
+  message  String?
+}
+
+model Valuation {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  date       DateTime
+  valueUsd   Decimal  @db.Decimal(14, 2)
+  source     String?
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId, date])
+}
