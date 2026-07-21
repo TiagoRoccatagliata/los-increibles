@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://increibles:${POSTGRES_PASSWORD}@db:5432/increibles
+    depends_on:
+      db:
+        condition: service_healthy
+    # Sin ports: Dokploy enruta el dominio al puerto 3000 vía Traefik (pestaña Domains)
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: increibles
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: increibles
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U increibles -d increibles"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Sin ports: la app llega por la red interna de Docker
+
+volumes:
+  pgdata:
