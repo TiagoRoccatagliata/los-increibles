@@ -23,7 +23,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: increibles
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_v2:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U increibles -d increibles"]
       interval: 5s
@@ -40,4 +40,4 @@ networks:
   internal:
 
 volumes:
-  pgdata:
+  pgdata_v2:
