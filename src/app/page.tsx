@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { getPortfolio } from '@/lib/portfolio'
 import { portfolioEvolution, portfolioSummary } from '@/lib/metrics'
 import { cajaBalance, getCaja, getLastSync } from '@/lib/consorcio'
+import { buildAlerts, cajaHealth } from '@/lib/decisiones'
 import { fmtUsd, STATUS_LABELS } from '@/lib/format'
 import EvolutionChart from '@/components/charts/EvolutionChart'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -23,6 +24,7 @@ export default async function DashboardPage() {
   const [props, caja, lastSync] = await Promise.all([getPortfolio(), getCaja(), getLastSync()])
   const s = portfolioSummary(props)
   const evolution = portfolioEvolution(props.filter((p) => p.status !== 'VENDIDA'))
+  const alerts = buildAlerts(props, cajaHealth(caja))
 
   if (props.length === 0) {
     return (
@@ -52,6 +54,26 @@ export default async function DashboardPage() {
           </p>
         )}
       </div>
+
+      {alerts.length > 0 && (
+        <ul className="mb-6 space-y-2">
+          {alerts.map((a, i) => (
+            <li key={i}>
+              <Link
+                href={a.href}
+                className={`block rounded-lg border p-3 text-sm transition-colors ${
+                  a.severity === 'red'
+                    ? 'border-red-500/40 bg-red-500/10 text-red-200 hover:border-red-400'
+                    : 'border-amber-500/40 bg-amber-500/10 text-amber-200 hover:border-amber-400'
+                }`}
+              >
+                {a.severity === 'red' ? '⚠ ' : '• '}
+                {a.text}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Kpi label="Egresos totales" value={fmtUsd(s.totalInvested)} />

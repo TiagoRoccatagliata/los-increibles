@@ -99,6 +99,57 @@ export function annualizedRoi(p: PlainProperty): number {
   return Math.pow(1 + r, 1 / years) - 1
 }
 
+/**
+ * Antigüedad en días de la última valuación cargada, o null si nunca se
+ * valuó (en ese caso currentValueUsd cae al precio de publicación/compra).
+ */
+export function valuationAgeDays(p: PlainProperty, now = new Date()): number | null {
+  const last = p.valuations[p.valuations.length - 1]
+  if (!last) return null
+  return Math.max(0, Math.round((now.getTime() - new Date(last.date).getTime()) / 86_400_000))
+}
+
+const RECURRING_CATEGORIES = new Set(['EXPENSAS', 'IMPUESTOS', 'SERVICIOS'])
+
+/**
+ * Costo de tenencia mensual estimado: promedio de egresos recurrentes
+ * (expensas, impuestos, servicios) de los últimos `windowMonths` meses.
+ */
+export function monthlyHoldingCost(p: PlainProperty, windowMonths = 6, now = new Date()): number {
+  const from = new Date(now)
+  from.setUTCMonth(from.getUTCMonth() - windowMonths)
+  const fromIso = from.toISOString()
+  const total = p.transactions
+    .filter(
+      (t) =>
+        t.direction === 'EGRESO' && RECURRING_CATEGORIES.has(t.category) && t.date >= fromIso,
+    )
+    .reduce((s, t) => s + t.amountUsd, 0)
+  return total / windowMonths
+}
+
+export type M2Reference = { name: string; usdPerM2: number; basis: string }
+
+/**
+ * USD/m² implícito de cada propiedad con superficie conocida, como
+ * referencia para valuar: usa venta > última valuación > compra.
+ */
+export function m2References(props: PlainProperty[]): M2Reference[] {
+  return props
+    .filter((p) => p.surfaceM2 && p.surfaceM2 > 0)
+    .map((p) => {
+      const lastValuation = p.valuations[p.valuations.length - 1]
+      const [value, basis] =
+        p.status === 'VENDIDA' && p.salePriceUsd
+          ? [p.salePriceUsd, 'venta']
+          : lastValuation
+            ? [lastValuation.valueUsd, 'valuación']
+            : [p.purchasePriceUsd, 'compra']
+      return { name: p.name, usdPerM2: value / p.surfaceM2!, basis }
+    })
+    .sort((a, b) => b.usdPerM2 - a.usdPerM2)
+}
+
 // ----- Métricas de portfolio -----
 
 export type PortfolioSummary = {

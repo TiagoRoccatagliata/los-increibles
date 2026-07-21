@@ -21,6 +21,11 @@ const REPORTS = [
     title: 'Comparación',
     desc: 'Inversión vs. ganancia y ranking para decidir dónde repetir.',
   },
+  {
+    href: '/informes/benchmark',
+    title: '¿Está rindiendo?',
+    desc: 'El consorcio contra plazo fijo, bonos, S&P 500 e inflación, con los aportes reales.',
+  },
 ]
 
 export default function InformesPage() {

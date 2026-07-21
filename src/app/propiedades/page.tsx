@@ -3,6 +3,7 @@ import { getPortfolio } from '@/lib/portfolio'
 import { investedUsd, profitUsd, roi, currentValueUsd } from '@/lib/metrics'
 import { fmtDate, fmtPct, fmtUsd, TYPE_LABELS } from '@/lib/format'
 import StatusBadge from '@/components/ui/StatusBadge'
+import ValuationBadge from '@/components/ui/ValuationBadge'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,7 +43,12 @@ export default async function PropiedadesPage() {
                         {TYPE_LABELS[p.type]} · {p.city}
                       </div>
                     </td>
-                    <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                    <td className="px-4 py-3">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={p.status} />
+                        <ValuationBadge p={p} />
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-slate-400">{fmtDate(p.purchaseDate)}</td>
                     <td className="px-4 py-3 text-right">{fmtUsd(investedUsd(p))}</td>
                     <td className="px-4 py-3 text-right">

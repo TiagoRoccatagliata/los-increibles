@@ -136,6 +136,11 @@ export async function syncFromSheet(): Promise<SyncResult> {
     let txCount = 0
     await prisma.$transaction(
       async (db) => {
+        // Las valuaciones se cargan a mano en la web (no vienen del sheet):
+        // se preservan por nombre de propiedad a través del reemplazo.
+        const savedValuations = await db.valuation.findMany({
+          include: { property: { select: { name: true } } },
+        })
         await db.property.deleteMany()
         await db.member.deleteMany()
         await db.cajaMovement.deleteMany()
@@ -200,6 +205,18 @@ export async function syncFromSheet(): Promise<SyncResult> {
           }
           if (txs.length) await db.transaction.createMany({ data: txs })
           txCount += txs.length
+
+          const vals = savedValuations.filter((v) => v.property.name === p.name)
+          if (vals.length) {
+            await db.valuation.createMany({
+              data: vals.map((v) => ({
+                propertyId: created.id,
+                date: v.date,
+                valueUsd: v.valueUsd,
+                source: v.source,
+              })),
+            })
+          }
         }
 
         for (const m of members) {

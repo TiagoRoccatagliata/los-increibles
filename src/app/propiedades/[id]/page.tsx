@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { getPortfolio } from '@/lib/portfolio'
+import { getMembers } from '@/lib/consorcio'
 import {
   investedUsd,
   incomeUsd,
@@ -8,9 +9,14 @@ import {
   roi,
   annualizedRoi,
   holdingDays,
+  monthlyHoldingCost,
+  m2References,
 } from '@/lib/metrics'
 import { CATEGORY_LABELS, fmtDate, fmtPct, fmtUsd, fmtUsdExact, TYPE_LABELS } from '@/lib/format'
 import StatusBadge from '@/components/ui/StatusBadge'
+import ValuationBadge from '@/components/ui/ValuationBadge'
+import ValuationForm from '@/components/ValuationForm'
+import SaleSimulator from '@/components/SaleSimulator'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +37,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 
 export default async function PropiedadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const props = await getPortfolio()
+  const [props, members] = await Promise.all([getPortfolio(), getMembers()])
   const p = props.find((x) => x.id === id)
   if (!p) notFound()
 
@@ -43,6 +49,7 @@ export default async function PropiedadPage({ params }: { params: Promise<{ id: 
       <div className="mb-1 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{p.name}</h1>
         <StatusBadge status={p.status} />
+        <ValuationBadge p={p} />
       </div>
       <p className="text-sm text-slate-400">
         {TYPE_LABELS[p.type]} · {p.city}
@@ -67,6 +74,25 @@ export default async function PropiedadPage({ params }: { params: Promise<{ id: 
           accent={roi(p) >= 0 ? 'pos' : 'neg'}
         />
       </div>
+
+      {p.status !== 'VENDIDA' && (
+        <>
+          <ValuationForm
+            propertyId={p.id}
+            valuations={p.valuations}
+            surfaceM2={p.surfaceM2}
+            references={m2References(props.filter((x) => x.id !== p.id))}
+          />
+          <SaleSimulator
+            investedUsd={invested}
+            incomeUsd={incomeUsd(p)}
+            holdingDays={holdingDays(p)}
+            defaultPrice={currentValueUsd(p)}
+            monthlyCost={monthlyHoldingCost(p)}
+            members={members.map((m) => ({ name: m.name, sharePct: m.sharePct }))}
+          />
+        </>
+      )}
 
       <section className="mt-10">
         <h2 className="mb-3 text-lg font-semibold">Movimientos ({p.transactions.length})</h2>

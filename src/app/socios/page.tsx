@@ -1,12 +1,25 @@
-import { getLiquidations, getMembers } from '@/lib/consorcio'
-import { fmtDate, fmtUsd, fmtUsdExact } from '@/lib/format'
+import Link from 'next/link'
+import { cajaBalance, getCaja, getLiquidations, getMembers } from '@/lib/consorcio'
+import { getPortfolio } from '@/lib/portfolio'
+import { consortiumNav, memberPositions } from '@/lib/decisiones'
+import { valuationAgeDays } from '@/lib/metrics'
+import { fmtDate, fmtPct, fmtUsd, fmtUsdExact } from '@/lib/format'
 import ContributionsChart from '@/components/charts/ContributionsChart'
 
 export const dynamic = 'force-dynamic'
 
 export default async function SociosPage() {
-  const [members, liquidations] = await Promise.all([getMembers(), getLiquidations()])
+  const [members, liquidations, props, caja] = await Promise.all([
+    getMembers(),
+    getLiquidations(),
+    getPortfolio(),
+    getCaja(),
+  ])
   const total = members.reduce((s, m) => s + m.contributionsUsd, 0)
+  const balance = cajaBalance(caja)
+  const nav = consortiumNav(props, balance)
+  const positions = memberPositions(members, props, balance)
+  const unvalued = props.filter((p) => p.status !== 'VENDIDA' && valuationAgeDays(p) === null)
 
   return (
     <main>
@@ -14,6 +27,73 @@ export default async function SociosPage() {
       <p className="mb-6 text-sm text-slate-400">
         Aportes totales: <span className="font-semibold text-white">{fmtUsd(total)}</span>
       </p>
+
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">¿Cómo está parado cada uno?</h2>
+        <p className="mb-3 text-sm text-slate-500">
+          Si hoy se vendiera todo a valor de mercado (menos ~4% de gastos de venta) y se repartiera
+          la caja, el consorcio vale{' '}
+          <span className="font-semibold text-white">{fmtUsd(nav)}</span>.
+          {unvalued.length > 0 && (
+            <span className="text-amber-400">
+              {' '}
+              Ojo: {unvalued.length === 1 ? 'una propiedad está' : `${unvalued.length} propiedades están`} sin
+              valuar (se usa el precio de compra), así que este número es conservador —{' '}
+              <Link href="/propiedades" className="underline">
+                cargá las valuaciones
+              </Link>
+              .
+            </span>
+          )}
+        </p>
+        <div className="overflow-x-auto rounded-xl border border-slate-800">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-900 text-left text-slate-400">
+              <tr>
+                <th className="px-4 py-3 font-medium">Socio</th>
+                <th className="px-4 py-3 text-right font-medium">Aportó</th>
+                <th className="px-4 py-3 text-right font-medium">Ya retiró</th>
+                <th className="px-4 py-3 text-right font-medium">Le corresponde hoy</th>
+                <th className="px-4 py-3 text-right font-medium">Ganancia</th>
+                <th className="px-4 py-3 text-right font-medium">ROI personal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {positions.map((pos) => (
+                <tr key={pos.name} className="border-t border-slate-800">
+                  <td className="px-4 py-3 font-medium text-white">
+                    {pos.name}{' '}
+                    <span className="text-xs font-normal text-slate-500">
+                      ({pos.sharePct.toFixed(1)}%)
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">{fmtUsd(pos.contributedUsd)}</td>
+                  <td className="px-4 py-3 text-right text-slate-400">
+                    {pos.withdrawnUsd > 0 ? fmtUsd(pos.withdrawnUsd) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium text-white">
+                    {fmtUsd(pos.entitledUsd)}
+                  </td>
+                  <td
+                    className={`px-4 py-3 text-right font-medium ${
+                      pos.profitUsd >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {fmtUsd(pos.profitUsd)}
+                  </td>
+                  <td
+                    className={`px-4 py-3 text-right ${
+                      pos.personalRoi >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}
+                  >
+                    {fmtPct(pos.personalRoi)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
