@@ -7,6 +7,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - dokploy-network
+      - internal
     # Sin ports: Dokploy enruta el dominio al puerto 3000 vía Traefik (pestaña Domains)
 
   db:
@@ -23,7 +26,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - internal
     # Sin ports: la app llega por la red interna de Docker
+
+networks:
+  # Red de Traefik/Dokploy: necesaria para que el dominio llegue al contenedor
+  dokploy-network:
+    external: true
+  internal:
 
 volumes:
   pgdata:
